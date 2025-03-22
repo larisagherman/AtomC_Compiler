@@ -1,0 +1,1 @@
+struct Person{int x;};
