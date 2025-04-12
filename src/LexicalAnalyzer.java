@@ -1,14 +1,14 @@
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
 public class LexicalAnalyzer {
     public String content;
     public int currentPosition=0;
     public int line=1;
     public LexicalAnalyzer(String file) throws IOException {
-        this.content=FileReader.readFile(file);
+        this.content= FileReader.readFile(file);
     }
     static class Token{
         public enum TokenType {
@@ -18,7 +18,9 @@ public class LexicalAnalyzer {
             ADD, SUB, MUL, DIV, ASSIGN, EQUAL, NOTEQ, LESS, LESSEQ, GREATER, GREATEREQ,
             DOT,AND,NOT,OR,
             SEMICOLON, COMMA, LPAR, RPAR, LBRACKET, RBRACKET, LACC, RACC,
-            LINECOMMENT,COMMENT
+            LINECOMMENT,COMMENT,
+            END
+
         }
         TokenType id;
         String text;
@@ -59,6 +61,8 @@ public class LexicalAnalyzer {
     private static final int MULTILINE_COMMENT_STATE = 24;
     private static final int MULTILINE_COMMENT_END_STATE = 25;
     private static final int AND_STATE = 26;
+    private static final int HEXA_STATE2 = 27;
+
 
 
     public List<Token> tokenize(){
@@ -194,14 +198,30 @@ public class LexicalAnalyzer {
                     if(currentChar=='x'||currentChar=='X'){
                         currentText.append(currentChar);
                         state=HEXA_STATE;
-                    }else if(currentChar>'0' &&currentChar<='7'){
+                    }else if(currentChar>='0' &&currentChar<='7'){
                         currentText.append(currentChar);
                         state=OCTAL_STATE;
-                    }else{
-                        throw new RuntimeException("!!!Invalid number of hexa or octal format!!!");
+                    } else if (currentChar=='.') {
+                        currentText.append(currentChar);
+                        state=DIGIT_NUMBER_STATE;
+                    } else{
+                        tokens.add(new Token(Token.TokenType.CT_INT,currentText.toString(),line));
+                        state=INITIAL_STATE;
+                        currentText=new StringBuilder();
+                        currentPosition--;
                     }
                     break;
                 case HEXA_STATE:
+                    if((currentChar>='A'&&currentChar<='F')||(currentChar>='a'&&currentChar<='f')||Character.isDigit(currentChar)){
+                        currentText.append(currentChar);
+                        state=HEXA_STATE2;
+                    } else if ( currentChar>'f') {
+                        throw new RuntimeException("!!!Invalid hexa digit at line " + line+"!!!");
+                    }else {
+                        throw new RuntimeException("!!!Invalid hexa digit at line " + line+"!!!");
+                    }
+                    break;
+                case HEXA_STATE2:
                     if((currentChar>='A'&&currentChar<='F')||(currentChar>='a'&&currentChar<='f')||Character.isDigit(currentChar)){
                         currentText.append(currentChar);
                     } else if ( currentChar>'f') {
@@ -260,6 +280,7 @@ public class LexicalAnalyzer {
                         currentText=new StringBuilder();
                         currentPosition--;
                     }
+                    break;
                 case EQUAL_OR_ASSIGN_STATE:
                     if(currentChar=='='){
                         currentText.append(currentChar);
@@ -357,7 +378,7 @@ public class LexicalAnalyzer {
                         currentText.append(currentChar);
                         state=SINGLE_QUOTE_END_STATE;
                     }else {
-                        throw new RuntimeException("!!!Invalid excape char format at line "+line+" !!!");
+                        throw new RuntimeException("!!!Invalid escape char format at line "+line+" !!!");
                     }
                     break;
                 case DOUBLE_QUOTE_STATE:
@@ -378,7 +399,7 @@ public class LexicalAnalyzer {
                         currentText.append(currentChar);
                         state=DOUBLE_QUOTE_STATE;
                     }else{
-                        throw new RuntimeException("!!!Invalid excape char format at line "+line+" !!!");
+                        throw new RuntimeException("!!!Invalid escape char format at line "+line+" !!!");
                     }
                     break;
                 case DIV_OR_LINE_COMMENT_STATE:
@@ -401,7 +422,7 @@ public class LexicalAnalyzer {
                     }else if (currentChar=='\\'){
                         state=LINE_COMMENT_ESC_STATE;
                     } else if (currentChar=='\n'){
-                      tokens.add(new Token(Token.TokenType.LINECOMMENT,currentText.toString(),line));
+//                      tokens.add(new Token(Token.TokenType.LINECOMMENT,currentText.toString(),line));
                       state=INITIAL_STATE;
                       currentText=new StringBuilder();
                       currentPosition--;
@@ -418,12 +439,14 @@ public class LexicalAnalyzer {
                     }else if (currentChar=='*'){
                         currentText.append(currentChar);
                         state=MULTILINE_COMMENT_END_STATE;
+                    } else if (currentChar=='\n') {
+                        line++;
                     }
                     break;
                 case MULTILINE_COMMENT_END_STATE:
                     if (currentChar=='/'){
                         currentText.append(currentChar);
-                        tokens.add(new Token(Token.TokenType.COMMENT,currentText.toString(),line));
+//                        tokens.add(new Token(Token.TokenType.COMMENT,currentText.toString(),line));
                         state=INITIAL_STATE;
                         currentText=new StringBuilder();
                     }else {
@@ -439,6 +462,11 @@ public class LexicalAnalyzer {
             if(state==DOUBLE_QUOTE_STATE||state==DOUBLE_QUOTE_END_STATE||state==DOUBLE_QUOTE_ESC_STATE){
                 throw new RuntimeException("!!!Invalid string format!!!");
             }
+        }
+        if(currentPosition>=content.length()){
+            line++;
+            tokens.add(new LexicalAnalyzer.Token(LexicalAnalyzer.Token.TokenType.END,"END",line));
+
         }
         return tokens;
     }
