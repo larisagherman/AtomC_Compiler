@@ -7,19 +7,10 @@ public class Main{
         try{
             LexicalAnalyzer lexicalAnalyzer=new LexicalAnalyzer(fileName);
             //System.out.println(lexicalAnalyzer.content);
-            //System.out.println("haha");
-            List<LexicalAnalyzer.Token> text=lexicalAnalyzer.tokenize();
-            int prevLine=-1;
-            for(int i=0;i< text.size();i++){
-                if(text.get(i).line!=prevLine){
-                    prevLine=text.get(i).line;
-                    System.out.println();
-                }
-                System.out.print(text.get(i).toString()+" ");
-            }
-            System.out.println();
+            List<LexicalAnalyzer.Token>text=LexicalAnalyzer.tokenize();
+//            LexicalAnalyzer.print(text);
             SyntacticalAnalyzer s=new SyntacticalAnalyzer(text);
-            System.out.println(s.unit());
+            if(s.unit()) System.out.println("YAY No errors!");
         }catch (IOException e){
             e.printStackTrace();
         }
