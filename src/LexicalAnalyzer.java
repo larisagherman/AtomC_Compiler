@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 public class LexicalAnalyzer {
-    public static String content;
-    public static int currentPosition=0;
-    public static int line=1;
+    public String content;
+    public int currentPosition=0;
+    public int line=1;
     public LexicalAnalyzer(String file) throws IOException {
         this.content= FileReader.readFile(file);
     }
@@ -65,7 +65,7 @@ public class LexicalAnalyzer {
 
 
 
-    static List<Token> tokenize(){
+    public List<Token> tokenize(){
         Set<Character> escapeChar=Set.of('a', 'b', 'f', 'n', 'r', 't', 'v', '\'', '?', '"', '\\', '0');
 
         int state=INITIAL_STATE;
@@ -469,18 +469,6 @@ public class LexicalAnalyzer {
 
         }
         return tokens;
-    }
-
-    static void print(List<LexicalAnalyzer.Token> text){
-        int prevLine=-1;
-        for(int i=0;i< text.size();i++){
-            if(text.get(i).line!=prevLine){
-                prevLine=text.get(i).line;
-                System.out.println();
-            }
-            System.out.print(text.get(i).toString()+" ");
-        }
-        System.out.println();
     }
 
 }
