@@ -32,7 +32,9 @@ public class SyntacticalAnalyzer {
                 continue;
             } else {
                 currentIndex = startIndex;  // backtrack
+
             }
+
             if (declFunc()) {
                 continue;
             } else {
@@ -45,24 +47,18 @@ public class SyntacticalAnalyzer {
 
             // If none matched, and nothing was consumed, break
             if (currentIndex == startIndex) {
-                System.out.println("Something is wrong.\t The file wasn't read all the way");
-//                System.out.println(currentIndex);
+                System.out.println("Something is wrong.\t The file wasn't read all the way for the syntactical part.");
                 return false;
             }
         }
 
-//        // Check for END token at the end
-//        if (!consume(LexicalAnalyzer.Token.TokenType.END)) {
-//            System.out.println("Error: Expected 'END' at the end of unit.");
-//            return false;
-//        }
 
         return true;
     }
 
 
+
     public boolean declStruct() {
-        int startIndex = currentIndex;
         if (consume(LexicalAnalyzer.Token.TokenType.STRUCT)) {
             if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
                 if (consume(LexicalAnalyzer.Token.TokenType.LACC)) {
@@ -74,23 +70,25 @@ public class SyntacticalAnalyzer {
                             return true;
                         } else {
                             System.out.println("Error: Missing ';' after struct definition at line " + tokens.get(currentIndex).line);
+                            System.exit(0);
                         }
                     } else {
                         System.out.println("Error: Missing '}' after struct definition at line " + tokens.get(currentIndex).line);
+                        System.exit(0);
                     }
                 } else {
-                    System.out.println("Error: Missing '{' after struct definition at line " + tokens.get(currentIndex).line);
+                    return false;
+//                    System.out.println("Error: Missing '{' after struct definition at line " + tokens.get(currentIndex).line);
                 }
             } else {
                 System.out.println("Error: Missing struct name after 'struct' at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         }
-        currentIndex = startIndex;
         return false;
     }
 
     public boolean declVar() {
-        int startIndex = currentIndex;
         if (typeBase()) {
             if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
                 if (currentIndex < tokens.size() && tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//if it's an arrayDecl
@@ -104,43 +102,46 @@ public class SyntacticalAnalyzer {
                             }
                         } else {
                             System.out.println("Error: Missing identifier after type at line " + tokens.get(currentIndex).line);
+                            System.exit(0);
                         }
                     }
                 }
                 if (consume(LexicalAnalyzer.Token.TokenType.SEMICOLON)) {
                     return true;
                 } else {
-                    System.out.println("Error: Missing ';' at line " + (tokens.get(currentIndex).line+1));
+                    System.out.println("Error: Missing ';' at line " + (tokens.get(currentIndex).line - 1));
+                    System.exit(0);
                 }
             } else {
                 System.out.println("Error: Missing identifier after type at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         }
-        currentIndex = startIndex;
+//        currentIndex = startIndex;
         return false;
     }
 
     public boolean arrayDecl() {
-        int startIndex = currentIndex;
+//        int startIndex = currentIndex;
         if (consume(LexicalAnalyzer.Token.TokenType.LBRACKET)) {
             // Only call expr() if there's something inside the brackets
             if (currentIndex < tokens.size() && tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RBRACKET) {
                 if (!expr()) {
                     System.out.println("Error (from arrayDecl): with expr() in array declaration at line " + tokens.get(currentIndex).line);
+                    System.exit(0);
                 }
             }
             if (consume(LexicalAnalyzer.Token.TokenType.RBRACKET)) {
                 return true;
             } else {
                 System.out.println("Error: Missing ']' in array declaration at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         }
-        currentIndex = startIndex;
+//        currentIndex = startIndex;
         return false;
     }
-
     public boolean declFunc() {
-        int startIndex = currentIndex;
         boolean verifyTypeBase = typeBase();
         if (consume(LexicalAnalyzer.Token.TokenType.VOID) || verifyTypeBase == true) {
             if (currentIndex < tokens.size() &&
@@ -148,7 +149,8 @@ public class SyntacticalAnalyzer {
                     verifyTypeBase == true) {
                 consume(LexicalAnalyzer.Token.TokenType.MUL);
             }
-            if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+
+            if (consume(LexicalAnalyzer.Token.TokenType.ID) ) {
                 if (consume(LexicalAnalyzer.Token.TokenType.LPAR)) {
                     if (currentIndex < tokens.size() && tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RPAR) {//if we have arguments
                         if (funcArg()) {
@@ -156,33 +158,37 @@ public class SyntacticalAnalyzer {
                                 while (consume(LexicalAnalyzer.Token.TokenType.COMMA)) {
                                     if (!funcArg()) {
                                         System.out.println("Error: Missing argument after ',' at line " + tokens.get(currentIndex).line);
+                                        System.exit(0);
                                     }
                                 }
                             }
                         } else {
                             System.out.println("Error: Invalid function argument at line " + tokens.get(currentIndex).line);
+                            System.exit(0);
                         }
                     }
                     if (consume(LexicalAnalyzer.Token.TokenType.RPAR)) {
                         if (stmCompound()) {
                             return true;
                         } else {
-                            System.out.println("Error: Invalid function body at line " + tokens.get(currentIndex).line);
+                            System.out.println("Error: with stmCompound() at line " + (tokens.get(currentIndex).line - 1));
+                            System.exit(0);
                         }
                     } else {
                         System.out.println("Error: Missing ')' in function declaration at line " + tokens.get(currentIndex).line);
+                        System.exit(0);
                     }
                 }
             } else {
-                System.out.println("Error: Missing ID after typeBase at line " + tokens.get(currentIndex).line);
+                return false;
+//                System.out.println("Error: Missing ID after typeBase at line " + tokens.get(currentIndex).line);
             }
         }
-        currentIndex = startIndex;
         return false;
     }
 
     public boolean stmCompound() {
-        int startIndex = currentIndex;
+//        startIndex = currentIndex;
         if (consume(LexicalAnalyzer.Token.TokenType.LACC)) {
             if (currentIndex < tokens.size() &&
                     currentToken.id != LexicalAnalyzer.Token.TokenType.RACC) {//If there is something inside the function body
@@ -190,6 +196,8 @@ public class SyntacticalAnalyzer {
                         tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RACC) {
                     if (!declVar()) {
                         if (!stm()) {
+                            System.out.println("Error: with stm() at line " + tokens.get(currentIndex).line);
+                            System.exit(0);
                             return false;
                         }
                     }
@@ -199,14 +207,15 @@ public class SyntacticalAnalyzer {
                 return true;
             } else {
                 System.out.println("Error: Missing '}' at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         }
-        currentIndex = startIndex;
+//        currentIndex = startIndex;
         return false;
     }
 
+
     public boolean stm() {
-        int startIndex = currentIndex;
         if (stmCompound()) {
             return true;
         } else if (consume(LexicalAnalyzer.Token.TokenType.IF)) {
@@ -219,6 +228,7 @@ public class SyntacticalAnalyzer {
                                 if (consume(LexicalAnalyzer.Token.TokenType.ELSE)) {
                                     if (!stm()) {
                                         System.out.println("Error: Missing '{ }'. at line " + tokens.get(currentIndex).line);
+                                        System.exit(0);
                                         return false;
                                     }
                                 }
@@ -240,13 +250,16 @@ public class SyntacticalAnalyzer {
                             return true;
                         } else {
                             System.out.println("Error: with the stm() at line " + tokens.get(currentIndex).line);
+                            System.exit(0);
                         }
                     } else {
                         System.out.println("Error: Missing ')' at line " + tokens.get(currentIndex).line);
+                        System.exit(0);
                     }
                 }
             } else {
                 System.out.println("Error: Missing '(' at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         } else if (consume(LexicalAnalyzer.Token.TokenType.FOR)) {
             if (consume(LexicalAnalyzer.Token.TokenType.LPAR)) {
@@ -270,22 +283,26 @@ public class SyntacticalAnalyzer {
                             }
                         } else {
                             System.out.println("Error: Missing ')' at line " + tokens.get(currentIndex).line);
+                            System.exit(0);
                         }
                     } else {
                         System.out.println("Error : Missing ';' at line " + tokens.get(currentIndex).line);
+                        System.exit(0);
                     }
                 } else {
-                    System.out.println(tokens.get(currentIndex).id);
                     System.out.println("Error : Missing ';' at line " + tokens.get(currentIndex).line);
+                    System.exit(0);
                 }
             } else {
                 System.out.println("Error: Missing '(' at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         } else if (consume(LexicalAnalyzer.Token.TokenType.BREAK)) {
             if (consume(LexicalAnalyzer.Token.TokenType.SEMICOLON)) {
                 return true;
             } else {
                 System.out.println("Error: Missing ';' at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         } else if (consume(LexicalAnalyzer.Token.TokenType.RETURN)) {
             if (currentIndex < tokens.size() && tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.SEMICOLON) {
@@ -294,24 +311,23 @@ public class SyntacticalAnalyzer {
             if (consume(LexicalAnalyzer.Token.TokenType.SEMICOLON)) {
                 return true;
             } else {
-                System.out.println("Error: Missing ';' at line " + tokens.get(currentIndex).line);
+                System.out.println("Error: Missing ';' at line " + (tokens.get(currentIndex).line-1));
+                System.exit(0);
             }
-        } else if (currentIndex < tokens.size() && tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.SEMICOLON) {
-            if (expr()) {
-                if (consume(LexicalAnalyzer.Token.TokenType.SEMICOLON)) {
-                    return true;
-                } else {
-                    System.out.println("Error: Missing ';' at line " + tokens.get(currentIndex).line);
-                }
+        } else if (expr()) {
+            if (consume(LexicalAnalyzer.Token.TokenType.SEMICOLON)) {
+                return true;
+            } else {
+                System.out.println("Error: Missing ';' at line " + (tokens.get(currentIndex).line - 1));
+                System.exit(0);
             }
         }
-        currentIndex = startIndex;
+//        currentIndex = startIndex;
         return false;
     }
 
 
     private boolean funcArg() {
-        int startIndex = currentIndex;
         if (typeBase()) {
             if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
                 if (currentIndex < tokens.size() && tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//if we have arguments
@@ -320,14 +336,13 @@ public class SyntacticalAnalyzer {
                 return true;
             } else {
                 System.out.println("Error: Missing ID after typeBase at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         }
-        currentIndex = startIndex;
         return false;
     }
 
     public boolean typeBase() {
-        int startIndex = currentIndex;
         if (consume(LexicalAnalyzer.Token.TokenType.INT) || consume(LexicalAnalyzer.Token.TokenType.DOUBLE) || consume(LexicalAnalyzer.Token.TokenType.CHAR)) {
             return true;
         } else if (consume(LexicalAnalyzer.Token.TokenType.STRUCT)) {
@@ -335,9 +350,9 @@ public class SyntacticalAnalyzer {
                 return true;
             } else {
                 System.out.println("Error: Missing ID after struct at line " + tokens.get(currentIndex).line);
+                System.exit(0);
             }
         }
-        currentIndex = startIndex;
         return false;
     }
 
@@ -538,7 +553,7 @@ public class SyntacticalAnalyzer {
         if (typeBase()) {
             if (tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//daca  e declarare de array
                 consume(LexicalAnalyzer.Token.TokenType.LBRACKET);
-                if (arrayDecl()){
+                if (arrayDecl()) {
                     return true;
                 }
             } else {//daca nu e declarare de array
@@ -569,62 +584,123 @@ public class SyntacticalAnalyzer {
         return false;
     }
 
+    //    public boolean exprPostfix2() {
+//        int startIndex = currentIndex;
+//
+//        if (!exprPrimary()) {
+//            return false;
+//        }
+//
+//        // After a primary expression, try to parse any postfix chain
+//        while (true) {
+//            int backup = currentIndex;
+//            if (!exprPostfix1()) {
+//                currentIndex = backup; // backtrack and stop chaining
+//                break;
+//            }
+//        }
+//
+//        return true;
+//    }
+//
+//
+//
+//    public boolean exprPostfix1() {
+//        if (exprPostfix1_1()) {
+//            return true;
+//        }
+//        if (exprPostfix1_2()) {
+//            return true;
+//        }
+//        return false;
+//    }
+//
+//    private boolean exprPostfix1_1() {//array decl
+//        if (!consume(LexicalAnalyzer.Token.TokenType.LBRACKET)) {
+//            return false;
+//        }
+//        if (!expr()) {
+//            return false;
+//        }
+//        if (!consume(LexicalAnalyzer.Token.TokenType.RBRACKET)) {
+//            System.out.println("Error: Missing ']' at line " + tokens.get(currentIndex).line);
+//            return false;
+//        }
+//
+//        exprPostfix1();
+//        return true;
+//    }
+//
+//    private boolean exprPostfix1_2() {
+//
+//        if (!consume(LexicalAnalyzer.Token.TokenType.DOT)) {
+//            return false;
+//        }
+//        if (!consume(LexicalAnalyzer.Token.TokenType.ID)) {
+//            System.out.println("Error: Missing ID at line " + tokens.get(currentIndex).line);
+//            return false;
+//        }
+//        exprPostfix1();
+//
+//        return true;
+//    }
     public boolean exprPostfix() {
-        int startIndex = currentIndex;
-
         if (!exprPrimary()) {
             return false;
         }
-
-        // After a primary expression, try to parse any postfix chain
-        while (true) {
-            int backup = currentIndex;
-            if (!exprPostfix1()) {
-                currentIndex = backup; // backtrack and stop chaining
-                break;
-            }
-        }
-
-        return true;
+        return exprPostfix1(); // allow chaining after a primary
     }
-
 
     public boolean exprPostfix1() {
-        if (exprPostfix1_1()) {
-            return true;
+        while (true) {
+            int startIndex = currentIndex;
+
+            if (exprPostfix1_1()) {
+                continue;
+            }
+            if (exprPostfix1_2()) {
+                continue;
+            }
+
+            // If neither matched, we're done with postfix
+            currentIndex = startIndex;
+            break;
         }
-        if (exprPostfix1_2()) {
-            return true;
-        }
-        return false;
+
+        return true; // it's okay to have no postfix
     }
 
-    private boolean exprPostfix1_1() {//array decl
+    private boolean exprPostfix1_1() {
+        int startIndex = currentIndex;
+
         if (!consume(LexicalAnalyzer.Token.TokenType.LBRACKET)) {
             return false;
         }
         if (!expr()) {
+            currentIndex = startIndex;
             return false;
         }
         if (!consume(LexicalAnalyzer.Token.TokenType.RBRACKET)) {
             System.out.println("Error: Missing ']' at line " + tokens.get(currentIndex).line);
+            currentIndex = startIndex;
             return false;
         }
 
-        exprPostfix1();
         return true;
     }
 
     private boolean exprPostfix1_2() {
+        int startIndex = currentIndex;
 
         if (!consume(LexicalAnalyzer.Token.TokenType.DOT)) {
             return false;
         }
         if (!consume(LexicalAnalyzer.Token.TokenType.ID)) {
-            System.out.println("Error: Missing ID at line " + tokens.get(currentIndex).line);
+            System.out.println("Error: Missing ID after '.' at line " + tokens.get(currentIndex).line);
+            currentIndex = startIndex;
+            System.exit(0);
             return false;
         }
-        exprPostfix1();
 
         return true;
     }
@@ -646,6 +722,8 @@ public class SyntacticalAnalyzer {
                     }
                     if (!consume(LexicalAnalyzer.Token.TokenType.RPAR)) {
                         System.out.println("Error: No ')' present at line " + tokens.get(currentIndex).line);
+                        System.exit(0);
+                        return false;
                     } else {
                         return true;
                     }
@@ -669,6 +747,7 @@ public class SyntacticalAnalyzer {
                     return true;
                 } else {
                     System.out.println("Error: No ')' present at line " + tokens.get(currentIndex).line);
+                    System.exit(0);
                 }
             }
         }

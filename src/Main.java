@@ -9,8 +9,10 @@ public class Main{
             //System.out.println(lexicalAnalyzer.content);
             List<LexicalAnalyzer.Token>text=LexicalAnalyzer.tokenize();
 //            LexicalAnalyzer.print(text);
+
             SyntacticalAnalyzer s=new SyntacticalAnalyzer(text);
-            if(s.unit()) System.out.println("YAY No errors!");
+            if(s.unit()==true) System.out.println("YAY No errors!");
+//            s.unit();
         }catch (IOException e){
             e.printStackTrace();
         }
