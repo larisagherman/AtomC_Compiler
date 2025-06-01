@@ -1,4 +1,4 @@
-//currentToken- este pentru consume
+//currentToken- este pentru consume()
 //tokens.get(currentIndex) e ce avem in lista
 
 import java.util.List;
@@ -6,15 +6,16 @@ import java.util.List;
 public class SyntacticalAnalyzer {
     private List<LexicalAnalyzer.Token> tokens;
     private int currentIndex = 0;
-    private LexicalAnalyzer.Token currentToken;
+    private SymbolTable symbols = new SymbolTable();
 
     public SyntacticalAnalyzer(List<LexicalAnalyzer.Token> tokens) {
         this.tokens = tokens;
     }
 
     private boolean consume(LexicalAnalyzer.Token.TokenType expected) {
+        LexicalAnalyzer.Token currentToken;
         if (currentIndex < tokens.size()) {
-            this.currentToken = tokens.get(currentIndex);
+            currentToken = tokens.get(currentIndex);
             if (currentToken.id == expected) {
                 currentIndex++;
                 return true;
@@ -57,16 +58,25 @@ public class SyntacticalAnalyzer {
     }
 
 
-
     public boolean declStruct() {
         if (consume(LexicalAnalyzer.Token.TokenType.STRUCT)) {
             if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+                String tkName = tokens.get(currentIndex - 1).text;
                 if (consume(LexicalAnalyzer.Token.TokenType.LACC)) {
+                    //if we find this symbol s id in our symbol list=> error: there cannot be two ids with the same name
+                    if (symbols.findSymbol(tkName) != null) {
+                        System.out.println("Error: Symbol redefinition: " + tkName + " at line " + tokens.get(currentIndex - 1).line);
+                        System.exit(0);
+                    }
+                    //if there is no symbol with that id we are going to add it to our symbol list
+                    symbols.crtStruct = symbols.addStructSymbol(tkName);
+
                     if (tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RACC) {
                         while (declVar()) ;
                     }
                     if (consume(LexicalAnalyzer.Token.TokenType.RACC)) {
                         if (consume(LexicalAnalyzer.Token.TokenType.SEMICOLON)) {
+                            symbols.crtStruct = null;
                             return true;
                         } else {
                             System.out.println("Error: Missing ';' after struct definition at line " + tokens.get(currentIndex).line);
@@ -78,7 +88,6 @@ public class SyntacticalAnalyzer {
                     }
                 } else {
                     return false;
-//                    System.out.println("Error: Missing '{' after struct definition at line " + tokens.get(currentIndex).line);
                 }
             } else {
                 System.out.println("Error: Missing struct name after 'struct' at line " + tokens.get(currentIndex).line);
@@ -89,17 +98,30 @@ public class SyntacticalAnalyzer {
     }
 
     public boolean declVar() {
-        if (typeBase()) {
+        SymbolTable.Type t = new SymbolTable.Type();
+        if (typeBase(t)) {
             if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+                String tkName = tokens.get(currentIndex - 1).text;
+                int line = tokens.get(currentIndex - 1).line;
                 if (currentIndex < tokens.size() && tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//if it's an arrayDecl
-                    arrayDecl();
+                    arrayDecl(t);
+                } else {
+                    t.nrElements = -1;
                 }
+                symbols.addVar(tkName, t, line);
                 if (currentIndex < tokens.size() && tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.COMMA) {
                     while (consume(LexicalAnalyzer.Token.TokenType.COMMA)) {
                         if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+                            tkName = tokens.get(currentIndex - 1).text;
+                            line = tokens.get(currentIndex - 1).line;
+
                             if (currentIndex < tokens.size() && tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//if it's an arrayDecl
-                                arrayDecl();
+                                arrayDecl(t);
+                            } else {
+                                t.nrElements = -1;
                             }
+                            symbols.addVar(tkName, t, line);
+
                         } else {
                             System.out.println("Error: Missing identifier after type at line " + tokens.get(currentIndex).line);
                             System.exit(0);
@@ -117,12 +139,10 @@ public class SyntacticalAnalyzer {
                 System.exit(0);
             }
         }
-//        currentIndex = startIndex;
         return false;
     }
 
-    public boolean arrayDecl() {
-//        int startIndex = currentIndex;
+    public boolean arrayDecl(SymbolTable.Type t) {
         if (consume(LexicalAnalyzer.Token.TokenType.LBRACKET)) {
             // Only call expr() if there's something inside the brackets
             if (currentIndex < tokens.size() && tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RBRACKET) {
@@ -130,6 +150,8 @@ public class SyntacticalAnalyzer {
                     System.out.println("Error (from arrayDecl): with expr() in array declaration at line " + tokens.get(currentIndex).line);
                     System.exit(0);
                 }
+            } else {
+                t.nrElements = 0; // array without given size
             }
             if (consume(LexicalAnalyzer.Token.TokenType.RBRACKET)) {
                 return true;
@@ -138,20 +160,33 @@ public class SyntacticalAnalyzer {
                 System.exit(0);
             }
         }
-//        currentIndex = startIndex;
         return false;
     }
+
     public boolean declFunc() {
-        boolean verifyTypeBase = typeBase();
-        if (consume(LexicalAnalyzer.Token.TokenType.VOID) || verifyTypeBase == true) {
+
+        SymbolTable.Type t = new SymbolTable.Type();
+        boolean verifyTypeBase = typeBase(t);
+        if (consume(LexicalAnalyzer.Token.TokenType.VOID) || verifyTypeBase) {
             if (currentIndex < tokens.size() &&
                     tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.MUL &&
-                    verifyTypeBase == true) {
+                    verifyTypeBase) {
                 consume(LexicalAnalyzer.Token.TokenType.MUL);
+                t.nrElements = 0;
+            } else {
+                t.typeBase = SymbolTable.TypeBase.TB_VOID;
+                t.nrElements = -1;
             }
 
-            if (consume(LexicalAnalyzer.Token.TokenType.ID) ) {
+            if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+                String tkName = tokens.get(currentIndex - 1).text;
+                if (symbols.findSymbol(tkName) != null) {
+                    System.out.println("Error: Symbol redefinition: " + tkName + " at line " + tokens.get(currentIndex - 1).line);
+                    System.exit(0);
+                }
                 if (consume(LexicalAnalyzer.Token.TokenType.LPAR)) {
+                    symbols.crtFunc = symbols.addFuncSymbol(tkName, t);
+
                     if (currentIndex < tokens.size() && tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RPAR) {//if we have arguments
                         if (funcArg()) {
                             if (tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.COMMA) {
@@ -168,7 +203,10 @@ public class SyntacticalAnalyzer {
                         }
                     }
                     if (consume(LexicalAnalyzer.Token.TokenType.RPAR)) {
+                        symbols.crtDepth--;
                         if (stmCompound()) {
+                            symbols.deleteSymbolsAfter(symbols.crtFunc);
+                            symbols.crtFunc = null;
                             return true;
                         } else {
                             System.out.println("Error: with stmCompound() at line " + (tokens.get(currentIndex).line - 1));
@@ -181,17 +219,22 @@ public class SyntacticalAnalyzer {
                 }
             } else {
                 return false;
-//                System.out.println("Error: Missing ID after typeBase at line " + tokens.get(currentIndex).line);
             }
         }
         return false;
     }
 
     public boolean stmCompound() {
-//        startIndex = currentIndex;
         if (consume(LexicalAnalyzer.Token.TokenType.LACC)) {
+            // Save the last symbol before entering the block
+            SymbolTable.Symbol start = null;
+            if (!symbols.symbols.isEmpty()) {
+                start = symbols.symbols.get(symbols.symbols.size() - 1);
+            }
+
+            symbols.crtDepth++;  // enter new scope level
             if (currentIndex < tokens.size() &&
-                    currentToken.id != LexicalAnalyzer.Token.TokenType.RACC) {//If there is something inside the function body
+                    tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RACC) {//If there is something inside the function body
                 while (currentIndex < tokens.size() &&
                         tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RACC) {
                     if (!declVar()) {
@@ -204,13 +247,15 @@ public class SyntacticalAnalyzer {
                 }
             }
             if (consume(LexicalAnalyzer.Token.TokenType.RACC)) {
+                symbols.crtDepth--; // exit scope
+                // Remove symbols declared inside this block
+                symbols.deleteSymbolsAfter(start);
                 return true;
             } else {
                 System.out.println("Error: Missing '}' at line " + tokens.get(currentIndex).line);
                 System.exit(0);
             }
         }
-//        currentIndex = startIndex;
         return false;
     }
 
@@ -278,9 +323,7 @@ public class SyntacticalAnalyzer {
                             expr();
                         }
                         if (consume(LexicalAnalyzer.Token.TokenType.RPAR)) {
-                            if (stm()) {
-                                return true;
-                            }
+                            return stm();
                         } else {
                             System.out.println("Error: Missing ')' at line " + tokens.get(currentIndex).line);
                             System.exit(0);
@@ -311,7 +354,7 @@ public class SyntacticalAnalyzer {
             if (consume(LexicalAnalyzer.Token.TokenType.SEMICOLON)) {
                 return true;
             } else {
-                System.out.println("Error: Missing ';' at line " + (tokens.get(currentIndex).line-1));
+                System.out.println("Error: Missing ';' at line " + (tokens.get(currentIndex).line - 1));
                 System.exit(0);
             }
         } else if (expr()) {
@@ -328,11 +371,17 @@ public class SyntacticalAnalyzer {
 
 
     private boolean funcArg() {
-        if (typeBase()) {
+        SymbolTable.Type t = new SymbolTable.Type();
+        if (typeBase(t)) {
             if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+                String tkName = tokens.get(currentIndex - 1).text;
+                int line = tokens.get(currentIndex - 1).line;
                 if (currentIndex < tokens.size() && tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//if we have arguments
-                    arrayDecl();
+                    arrayDecl(t);
+                } else {
+                    t.nrElements = -1;
                 }
+                SymbolTable.Symbol s = symbols.addFcArg(tkName, t, line);
                 return true;
             } else {
                 System.out.println("Error: Missing ID after typeBase at line " + tokens.get(currentIndex).line);
@@ -342,11 +391,31 @@ public class SyntacticalAnalyzer {
         return false;
     }
 
-    public boolean typeBase() {
-        if (consume(LexicalAnalyzer.Token.TokenType.INT) || consume(LexicalAnalyzer.Token.TokenType.DOUBLE) || consume(LexicalAnalyzer.Token.TokenType.CHAR)) {
+    public boolean typeBase(SymbolTable.Type typeBase) {
+        if (consume(LexicalAnalyzer.Token.TokenType.INT)) {
+            typeBase = new SymbolTable.Type(SymbolTable.TypeBase.TB_INT);
+            return true;
+        } else if (consume(LexicalAnalyzer.Token.TokenType.DOUBLE)) {
+            typeBase = new SymbolTable.Type(SymbolTable.TypeBase.TB_DOUBLE);
+            return true;
+        } else if (consume(LexicalAnalyzer.Token.TokenType.CHAR)) {
+            typeBase = new SymbolTable.Type(SymbolTable.TypeBase.TB_CHAR);
             return true;
         } else if (consume(LexicalAnalyzer.Token.TokenType.STRUCT)) {
             if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+                String tkName = tokens.get(currentIndex - 1).text;
+                SymbolTable.Symbol s = symbols.findSymbol(tkName);
+                if (s == null) {
+                    System.out.println("Error: undefined symbol: " + tkName + " at line " + tokens.get(currentIndex - 1).line);
+                    System.exit(0);
+                }
+                if (s.cls != SymbolTable.CLAS.CLS_STRUCT) {
+                    System.out.println("Error: " + tkName + " is not a struct at line " + tokens.get(currentIndex - 1).line);
+                    System.exit(0);
+                }
+                SymbolTable.Type type = new SymbolTable.Type(SymbolTable.TypeBase.TB_STRUCT);
+                type.s = s;
+                typeBase = type.s.type;
                 return true;
             } else {
                 System.out.println("Error: Missing ID after struct at line " + tokens.get(currentIndex).line);
@@ -356,6 +425,21 @@ public class SyntacticalAnalyzer {
         return false;
     }
 
+    public boolean typeName(SymbolTable.Type retType) {
+
+        if (typeBase(retType)) {
+            if (tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//daca  e declarare de array
+                consume(LexicalAnalyzer.Token.TokenType.LBRACKET);
+                if (arrayDecl(retType)) {
+                    retType.nrElements = 0;
+                    return true;
+                }
+            } else {//daca nu e declarare de array
+                return true;
+            }
+        }
+        return false;
+    }
 
     public boolean expr() {
         return exprAssign();
@@ -381,7 +465,6 @@ public class SyntacticalAnalyzer {
         if (!consume(LexicalAnalyzer.Token.TokenType.ASSIGN)) {
             return false;
         }
-
         exprAssign();
         return true;
     }
@@ -423,6 +506,7 @@ public class SyntacticalAnalyzer {
 
     public boolean exprAnd1() {
         if (consume(LexicalAnalyzer.Token.TokenType.AND)) {
+            SymbolTable.RetVal rve = new SymbolTable.RetVal();
             if (!exprEq()) {
                 return false;
             }
@@ -494,6 +578,7 @@ public class SyntacticalAnalyzer {
             if (!exprMul()) {
                 return false;
             }
+
             exprAdd1();
         }
 
@@ -517,6 +602,7 @@ public class SyntacticalAnalyzer {
             if (!exprCast()) {
                 return false;
             }
+
             exprMul1();
         }
         return true;
@@ -534,7 +620,8 @@ public class SyntacticalAnalyzer {
         if (!consume(LexicalAnalyzer.Token.TokenType.LPAR)) {
             return false;
         }
-        if (!typeName()) {
+        SymbolTable.Type type = new SymbolTable.Type();
+        if (!typeName(type)) {
             System.out.println("Error: Invalid/No typeName() at line " + tokens.get(currentIndex).line);
             return false;
         }
@@ -545,23 +632,10 @@ public class SyntacticalAnalyzer {
             return false;
         }
         exprCast();
+
         return true;
     }
 
-    public boolean typeName() {
-
-        if (typeBase()) {
-            if (tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LBRACKET) {//daca  e declarare de array
-                consume(LexicalAnalyzer.Token.TokenType.LBRACKET);
-                if (arrayDecl()) {
-                    return true;
-                }
-            } else {//daca nu e declarare de array
-                return true;
-            }
-        }
-        return false;
-    }
 
     public boolean exprUnary() {
         if (exprUnary1()) {
@@ -579,71 +653,12 @@ public class SyntacticalAnalyzer {
                 System.out.println("Error: Invalid exprUnary() expression at line " + tokens.get(currentIndex).line);
                 return false;
             }
+
             return true;
         }
         return false;
     }
 
-    //    public boolean exprPostfix2() {
-//        int startIndex = currentIndex;
-//
-//        if (!exprPrimary()) {
-//            return false;
-//        }
-//
-//        // After a primary expression, try to parse any postfix chain
-//        while (true) {
-//            int backup = currentIndex;
-//            if (!exprPostfix1()) {
-//                currentIndex = backup; // backtrack and stop chaining
-//                break;
-//            }
-//        }
-//
-//        return true;
-//    }
-//
-//
-//
-//    public boolean exprPostfix1() {
-//        if (exprPostfix1_1()) {
-//            return true;
-//        }
-//        if (exprPostfix1_2()) {
-//            return true;
-//        }
-//        return false;
-//    }
-//
-//    private boolean exprPostfix1_1() {//array decl
-//        if (!consume(LexicalAnalyzer.Token.TokenType.LBRACKET)) {
-//            return false;
-//        }
-//        if (!expr()) {
-//            return false;
-//        }
-//        if (!consume(LexicalAnalyzer.Token.TokenType.RBRACKET)) {
-//            System.out.println("Error: Missing ']' at line " + tokens.get(currentIndex).line);
-//            return false;
-//        }
-//
-//        exprPostfix1();
-//        return true;
-//    }
-//
-//    private boolean exprPostfix1_2() {
-//
-//        if (!consume(LexicalAnalyzer.Token.TokenType.DOT)) {
-//            return false;
-//        }
-//        if (!consume(LexicalAnalyzer.Token.TokenType.ID)) {
-//            System.out.println("Error: Missing ID at line " + tokens.get(currentIndex).line);
-//            return false;
-//        }
-//        exprPostfix1();
-//
-//        return true;
-//    }
     public boolean exprPostfix() {
         if (!exprPrimary()) {
             return false;
@@ -680,6 +695,7 @@ public class SyntacticalAnalyzer {
             currentIndex = startIndex;
             return false;
         }
+
         if (!consume(LexicalAnalyzer.Token.TokenType.RBRACKET)) {
             System.out.println("Error: Missing ']' at line " + tokens.get(currentIndex).line);
             currentIndex = startIndex;
@@ -701,12 +717,13 @@ public class SyntacticalAnalyzer {
             System.exit(0);
             return false;
         }
-
+        String tkName = tokens.get(currentIndex - 1).text;
         return true;
     }
 
     public boolean exprPrimary() {
         if (consume(LexicalAnalyzer.Token.TokenType.ID)) {
+            String tkName = tokens.get(currentIndex - 1).text;
             if (currentIndex < tokens.size() && tokens.get(currentIndex).id == LexicalAnalyzer.Token.TokenType.LPAR) {//we check if there is a LPAR present
                 if (consume(LexicalAnalyzer.Token.TokenType.LPAR)) {
                     if (currentIndex < tokens.size() && tokens.get(currentIndex).id != LexicalAnalyzer.Token.TokenType.RPAR) {//we check if there is something inside ( )

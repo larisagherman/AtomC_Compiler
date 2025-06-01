@@ -12,7 +12,7 @@ public class Main{
 
             SyntacticalAnalyzer s=new SyntacticalAnalyzer(text);
             if(s.unit()==true) System.out.println("YAY No errors!");
-//            s.unit();
+//            s.declVar();
         }catch (IOException e){
             e.printStackTrace();
         }
